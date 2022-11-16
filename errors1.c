@@ -1,142 +1,100 @@
-#include "shell.h"
+#include "error.h"
+#include "general.h"
+#include "text.h"
 
 /**
- * _erratoi - converts a string to an integer
- * @s: the string to be converted
- * Return: 0 if no numbers in string, converted number otherwise
- *       -1 on error
- */
-int _erratoi(char *s)
-{
-	int i = 0;
-	unsigned long int result = 0;
-
-	if (*s == '+')
-		s++;  /* TODO: why does this make main return 255? */
-	for (i = 0;  s[i] != '\0'; i++)
-	{
-		if (s[i] >= '0' && s[i] <= '9')
-		{
-			result *= 10;
-			result += (s[i] - '0');
-			if (result > INT_MAX)
-				return (-1);
-		}
-		else
-			return (-1);
-	}
-	return (result);
-}
-
-/**
- * print_error - prints an error message
- * @info: the parameter & return info struct
- * @estr: string containing specified error type
- * Return: 0 if no numbers in string, converted number otherwise
- *        -1 on error
- */
-void print_error(info_t *info, char *estr)
-{
-	_eputs(info->fname);
-	_eputs(": ");
-	print_d(info->line_count, STDERR_FILENO);
-	_eputs(": ");
-	_eputs(info->argv[0]);
-	_eputs(": ");
-	_eputs(estr);
-}
-
-/**
- * print_d - function prints a decimal (integer) number (base 10)
- * @input: the input
- * @fd: the filedescriptor to write to
+ * message_selector - Select the message that match with the error_code
  *
- * Return: number of characters printed
- */
-int print_d(int input, int fd)
+ * @info: General information about the shell
+ *
+ * Return: Error message
+ **/
+char *message_selector(general_t info)
 {
-	int (*__putchar)(char) = _putchar;
-	int i, count = 0;
-	unsigned int _abs_, current;
+	int i, n_options;
+	error_t messages[] = {
+		{_ENOENT, _CODE_ENOENT},
+		{_EACCES, _CODE_EACCES},
+		{_CMD_NOT_EXISTS, _CODE_CMD_NOT_EXISTS},
+		{_ILLEGAL_NUMBER, _CODE_ILLEGAL_NUMBER}
+	};
 
-	if (fd == STDERR_FILENO)
-		__putchar = _eputchar;
-	if (input < 0)
-	{
-		_abs_ = -input;
-		__putchar('-');
-		count++;
-	}
-	else
-		_abs_ = input;
-	current = _abs_;
-	for (i = 1000000000; i > 1; i /= 10)
-	{
-		if (_abs_ / i)
-		{
-			__putchar('0' + current / i);
-			count++;
-		}
-		current %= i;
-	}
-	__putchar('0' + current);
-	count++;
+	n_options = sizeof(messages) / sizeof(messages[0]);
+	for (i = 0; i < n_options; i++)
+		if (info.error_code == messages[i].code)
+			return (messages[i].message);
 
-	return (count);
+	return ("");
 }
 
 /**
- * convert_number - converter function, a clone of itoa
- * @num: number
- * @base: base
- * @flags: argument flags
+ * error - Print the error
  *
- * Return: string
- */
-char *convert_number(long int num, int base, int flags)
+ * @info: General information about the shell
+ **/
+void error(general_t *info)
 {
-	static char *array;
-	static char buffer[50];
-	char sign = 0;
-	char *ptr;
-	unsigned long n = num;
+	char *message;
+	char *number;
+	char *aux;
+	int size_number, size_message;
 
-	if (!(flags & CONVERT_UNSIGNED) && num < 0)
-	{
-		n = -num;
-		sign = '-';
+	number = NULL;
+	message = message_selector(*info);
+	number = to_string(info->n_commands);
 
-	}
-	array = flags & CONVERT_LOWERCASE ? "0123456789abcdef" : "0123456789ABCDEF";
-	ptr = &buffer[49];
-	*ptr = '\0';
+	size_number = _strlen(number);
+	size_message = _strlen(info->argv[0]);
 
-	do	{
-		*--ptr = array[n % base];
-		n /= base;
-	} while (n != 0);
+	aux = malloc(size_message + size_number + 3);
 
-	if (sign)
-		*--ptr = sign;
-	return (ptr);
+	aux = _strcpy(aux, info->argv[0]);
+	aux = _strcat(aux, ": ");
+	aux = _strcat(aux, number);
+
+	message = join_words(aux, info->command, message, ": ");
+	print_err(message);
+
+	free(message);
+	free(number);
+	free(aux);
 }
 
 /**
- * remove_comments - function replaces first instance of '#' with '\0'
- * @buf: address of the string to modify
+ * error_extra - Print the error with extra information
  *
- * Return: Always 0;
- */
-void remove_comments(char *buf)
+ * @info: General information about the shell
+ * @extra: Extra information
+ **/
+void error_extra(general_t *info, char *extra)
 {
-	int i;
+	char *message, *number, *aux, *aux2;
+	int size_number, size_message, size_extra;
 
-	for (i = 0; buf[i] != '\0'; i++)
-		if (buf[i] == '#' && (!i || buf[i - 1] == ' '))
-		{
-			buf[i] = '\0';
-			break;
-		}
+	number = NULL;
+	message = message_selector(*info);
+	number = to_string(info->n_commands);
+
+	size_number = _strlen(number);
+	size_message = _strlen(info->argv[0]);
+	size_extra = _strlen(extra);
+
+	aux = malloc(size_message + size_number + 3);
+	aux = _strcpy(aux, info->argv[0]);
+	aux = _strcat(aux, ": ");
+	aux = _strcat(aux, number);
+
+	aux2 = malloc(_strlen(message) + size_extra + 3);
+	aux2 = _strcpy(aux2, message);
+	aux2 = _strcat(aux2, ": ");
+	aux2 = _strcat(aux2, extra);
+
+	message = join_words(aux, info->command, aux2, ": ");
+	print_err(message);
+
+	free(message);
+	free(number);
+	free(aux);
+	free(aux2);
 }
-Footer
 

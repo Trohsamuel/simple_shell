@@ -138,5 +138,3 @@ void remove_comments(char *buf)
 			break;
 		}
 }
-Footer
-
